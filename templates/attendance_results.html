@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Results</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-lg w-full p-8 space-y-8 bg-white rounded-lg shadow-lg border border-gray-200 mx-auto mt-16">
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Attendance Results</h2>
+        {% if message %}
+        <div class="bg-yellow-100 text-yellow-800 p-4 rounded mb-4 text-center">{{ message }}</div>
+        {% endif %}
+        <table class="w-full border-collapse">
+            <thead>
+                <tr>
+                    <th class="border-b py-2 text-left">Student ID</th>
+                    <th class="border-b py-2 text-left">Name</th>
+                </tr>
+            </thead>
+            <tbody id="resultsTable">
+                <!-- Attended students will be inserted here -->
+            </tbody>
+        </table>
+        <a href="/attendance" class="block mt-6 text-indigo-600">&#8592; Mark Another Attendance</a>
+        <a href="/" class="block mt-2 text-indigo-600">&#8592; Back to Home</a>
+    </div>
+    <script>
+        // Get student IDs from query string
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+        async function fetchAttendedStudents() {
+            const ids = getQueryParam('students');
+            if (!ids) return;
+            const response = await fetch(`/attendance/results?students=${ids}`);
+            const result = await response.json();
+            const table = document.getElementById('resultsTable');
+            table.innerHTML = '';
+            if (response.ok && result.students.length > 0) {
+                result.students.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td class="border-b py-2">${student.student_id_number}</td><td class="border-b py-2">${student.name}</td>`;
+                    table.appendChild(row);
+                });
+            } else {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="2" class="py-4 text-center text-gray-500">No students recognized.</td>`;
+                table.appendChild(row);
+            }
+        }
+        fetchAttendedStudents();
+    </script>
+</body>
+</html>

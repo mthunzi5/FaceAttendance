@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Lecturers List{% endblock %}
+{% block content %}
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-2xl mx-auto mt-8">
+        <h1 class="text-2xl font-bold mb-6 text-center">Lecturers</h1>
+        <table class="w-full table-auto border">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="px-4 py-2">ID</th>
+                    <th class="px-4 py-2">Name</th>
+                    <th class="px-4 py-2">Username</th>
+                    <th class="px-4 py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lecturer in lecturers %}
+                <tr class="border-b">
+                    <td class="px-4 py-2">{{ lecturer.id }}</td>
+                    <td class="px-4 py-2">{{ lecturer.name }}</td>
+                    <td class="px-4 py-2">{{ lecturer.username }}</td>
+                    <td class="px-4 py-2">
+                        <a href="/lecturers/{{ lecturer.id }}/edit" class="bg-blue-500 text-white px-2 py-1 rounded mr-2">Edit</a>
+                        <form action="/lecturers/{{ lecturer.id }}/delete" method="POST" style="display:inline;">
+                            <button type="submit" class="bg-red-500 text-white px-2 py-1 rounded" onclick="return confirm('Delete this lecturer?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center py-4">No lecturers found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-6 text-center">
+            <a href="/create-lecturer" class="bg-green-600 text-white px-4 py-2 rounded">Add Lecturer</a>
+        </div>
+    </div>
+{% endblock %}

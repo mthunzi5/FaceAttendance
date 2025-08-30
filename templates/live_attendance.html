@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Camera Attendance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
+        <h1 class="text-2xl font-bold mb-4 text-center">Live Camera Attendance</h1>
+        <form id="liveAttendanceForm" class="mb-4">
+            <label class="block text-lg font-medium text-gray-700 mb-2">Module Name <span class="text-red-600">*</span></label>
+            <input type="text" id="moduleName" name="module_name" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 mb-4" required>
+        </form>
+        <video id="video" width="100%" height="320" autoplay class="rounded border mb-4"></video>
+        <div class="flex justify-center mb-4">
+            <button id="startBtn" class="bg-blue-600 text-white px-4 py-2 rounded mr-2">Start Attendance</button>
+            <button id="stopBtn" class="bg-red-600 text-white px-4 py-2 rounded" disabled>Stop</button>
+            <button id="reviewBtn" class="bg-green-600 text-white px-4 py-2 rounded ml-2" style="display:none;">Review & Save</button>
+        </div>
+        <div id="status" class="text-center text-gray-700 mb-2"></div>
+        <div id="spinner" class="flex justify-center mb-2" style="display:none;">
+            <svg class="animate-spin h-6 w-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+        </div>
+        <div id="results" class="mt-4"></div>
+    </div>
+    <script>
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+        let stream = null;
+        let intervalId = null;
+        let lastResults = null;
+
+        async function startCamera() {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+        }
+
+        function captureFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg');
+        }
+
+        async function sendFrame() {
+            const imageData = captureFrame();
+            const moduleName = document.getElementById('moduleName').value;
+            if (!moduleName) {
+                statusDiv.textContent = 'Module name is required.';
+                return;
+            }
+            statusDiv.textContent = 'Processing...';
+            document.getElementById('spinner').style.display = 'flex';
+            try {
+                const response = await fetch('/live-attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ camera_image: imageData, module_name: moduleName })
+                });
+                if (response.ok) {
+                    const html = await response.text();
+                    lastResults = html;
+                    document.getElementById('reviewBtn').style.display = 'inline-block';
+                    resultsDiv.innerHTML = '<div class="text-green-700">Scan complete. Click "Review & Save" to view and save results.</div>';
+                } else {
+                    resultsDiv.innerHTML = `<div class='text-red-600'>Error: ${response.statusText}</div>`;
+                }
+            } catch (err) {
+                resultsDiv.innerHTML = `<div class='text-red-600'>Error: ${err}</div>`;
+            }
+            statusDiv.textContent = '';
+            document.getElementById('spinner').style.display = 'none';
+        }
+
+        startBtn.onclick = async () => {
+            if (!document.getElementById('moduleName').value) {
+                statusDiv.textContent = 'Module name is required.';
+                return;
+            }
+            await startCamera();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            statusDiv.textContent = 'Camera started. Scanning for faces...';
+            intervalId = setInterval(sendFrame, 5000); // Scan every 5 seconds
+        };
+
+        stopBtn.onclick = () => {
+            stopCamera();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusDiv.textContent = 'Camera stopped.';
+            clearInterval(intervalId);
+        };
+
+        document.getElementById('reviewBtn').onclick = () => {
+            if (lastResults) {
+                document.open();
+                document.write(lastResults);
+                document.close();
+            }
+        };
+    </script>
+</body>
+</html>

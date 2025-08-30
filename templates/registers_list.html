@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Saved Registers{% endblock %}
+{% block content %}
+<div class="bg-white p-8 rounded shadow-md w-full max-w-3xl mx-auto mt-8">
+    <h1 class="text-2xl font-bold mb-6 text-center">Saved Registers</h1>
+    {% if registers and registers|length > 0 %}
+    <table class="w-full border mb-4">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="px-4 py-2">Module Name</th>
+                <th class="px-4 py-2">Lecturer</th>
+                <th class="px-4 py-2">Date/Time</th>
+                <th class="px-4 py-2">Student IDs</th>
+                <th class="px-4 py-2">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reg in registers %}
+            <tr>
+                <td class="px-4 py-2">{{ reg.module_name }}</td>
+                <td class="px-4 py-2">{{ reg.lecturer_name }}</td>
+                <td class="px-4 py-2">{{ reg.date_time }}</td>
+                <td class="px-4 py-2">{{ reg.student_ids }}</td>
+                <td class="px-4 py-2">
+                    <form method="POST" action="/export-register">
+                        <input type="hidden" name="module_name" value="{{ reg.module_name }}">
+                        <input type="hidden" name="lecturer_name" value="{{ reg.lecturer_name }}">
+                        <input type="hidden" name="attendance_time" value="{{ reg.date_time }}">
+                        <input type="hidden" name="student_ids" value="{{ reg.student_ids }}">
+                        <button type="submit" class="bg-indigo-600 text-white px-2 py-1 rounded text-sm">Export PDF</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center text-red-600">No registers saved yet.</div>
+    {% endif %}
+    <a href="/" class="block mt-8 text-indigo-600 text-center font-medium hover:underline">&#8592; Back to Home</a>
+</div>
+{% endblock %}

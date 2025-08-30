@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Student</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-md w-full p-8 space-y-8 bg-white rounded-lg shadow-lg border border-gray-200 mx-auto mt-16">
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Edit Student</h2>
+        <form action="/students/{{ student.student_id_number }}/edit" method="POST">
+            <label class="block mb-2">Student ID:</label>
+            <input type="text" name="student_id_number" value="{{ student.student_id_number }}" readonly class="mb-4 w-full bg-gray-100">
+            <label class="block mb-2">Name:</label>
+            <input type="text" name="name" value="{{ student.name }}" required class="mb-4 w-full">
+            <button type="submit" class="w-full py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700">Update Student</button>
+        </form>
+        <a href="/students" class="block mt-6 text-indigo-600">&#8592; Back to Student List</a>
+    </div>
+</body>
+</html>

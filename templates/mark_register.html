@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mark Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #camera-stream { display: none; }
+        #capture-btn, #close-camera-btn { display: none; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-100 via-white to-indigo-100 min-h-screen flex items-center justify-center">
+    <div class="max-w-lg w-full p-10 space-y-8 bg-white rounded-2xl shadow-2xl border border-gray-300 mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-3xl font-extrabold text-indigo-700 tracking-tight">Mark Register</h2>
+            <span class="inline-block px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full">Classic Mode</span>
+        </div>
+        <form id="registerForm" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <div class="mb-4">
+                <label class="block text-lg font-medium text-gray-700">Module Name</label>
+                <input type="text" name="module_name" id="module-name" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2" required>
+            </div>
+            <div class="flex flex-col items-center space-y-2">
+                <label class="block text-lg font-medium text-gray-700">Upload Group/Classroom Photo</label>
+                <input type="file" name="image" id="image-input" accept="image/*" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2">
+            </div>
+            <div class="flex flex-row items-center justify-center space-x-4">
+                <button type="button" id="open-camera-btn" class="py-2 px-6 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">Use Camera</button>
+                <button type="button" id="close-camera-btn" class="py-2 px-6 bg-gray-400 text-white rounded-lg shadow hover:bg-gray-500 transition" style="display:none;">Close Camera</button>
+            </div>
+            <div id="camera-stream" class="flex flex-col items-center space-y-2" style="display:none;">
+                <video id="video" width="320" height="240" autoplay class="rounded-lg border border-indigo-200 shadow"></video>
+                <button type="button" id="capture-btn" class="py-2 px-6 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 mt-2 transition">Capture Photo</button>
+            </div>
+            <input type="hidden" name="camera_image" id="camera-image">
+            <div id="preview" class="mt-4 flex justify-center"></div>
+            <button type="submit" class="w-full py-3 px-4 bg-indigo-700 text-white font-semibold rounded-xl shadow hover:bg-indigo-800 mt-4 transition">Mark Register</button>
+        </form>
+        <div id="resultBox" class="mt-6"></div>
+        <a href="/" class="block mt-8 text-indigo-600 text-center font-medium hover:underline">&#8592; Back to Home</a>
+    </div>
+    <script>
+        const openCameraBtn = document.getElementById('open-camera-btn');
+        const closeCameraBtn = document.getElementById('close-camera-btn');
+        const cameraStream = document.getElementById('camera-stream');
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const preview = document.getElementById('preview');
+        const cameraImageInput = document.getElementById('camera-image');
+        const imageInput = document.getElementById('image-input');
+        const resultBox = document.getElementById('resultBox');
+        let stream;
+
+        openCameraBtn.onclick = async function() {
+            cameraStream.style.display = 'block';
+            captureBtn.style.display = 'inline-block';
+            closeCameraBtn.style.display = 'inline-block';
+            openCameraBtn.style.display = 'none';
+            imageInput.style.display = 'none';
+            preview.innerHTML = '';
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        };
+        closeCameraBtn.onclick = function() {
+            cameraStream.style.display = 'none';
+            captureBtn.style.display = 'none';
+            closeCameraBtn.style.display = 'none';
+            openCameraBtn.style.display = 'inline-block';
+            imageInput.style.display = 'inline-block';
+            preview.innerHTML = '';
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+        captureBtn.onclick = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            preview.innerHTML = `<img src="${dataUrl}" class="rounded shadow">`;
+            cameraImageInput.value = dataUrl;
+            closeCameraBtn.click();
+        };
+        document.getElementById('registerForm').onsubmit = function(e) {
+            if (cameraImageInput.value) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                fetch(cameraImageInput.value)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        formData.set('image', blob, 'camera.jpg');
+                        fetch('/mark-register', {
+                            method: 'POST',
+                            body: formData
+                        }).then(async response => {
+                            const result = await response.json();
+                            if (result.status === 'no_faces') {
+                                resultBox.innerHTML = '<div class="bg-yellow-100 text-yellow-800 p-4 rounded text-center">No faces detected in the image.</div>';
+                            } else if (result.status === 'no_students') {
+                                resultBox.innerHTML = '<div class="bg-yellow-100 text-yellow-800 p-4 rounded text-center">No one attended. Faces were detected, but none matched enrolled students.</div>';
+                            } else if (result.status === 'success') {
+                                // Fetch student details for each ID
+                                fetch(`/students?ids=${result.students.join(',')}&json=1`).then(async resp => {
+                                    const data = await resp.json();
+                                    if (data.students && data.students.length > 0) {
+                                        let table = `<div class='bg-green-100 text-green-800 p-4 rounded'><h3 class='font-bold mb-2 text-lg text-center'>Attended Students</h3><table class='w-full border-collapse'><thead><tr><th class='border-b py-2 text-left'>Student ID</th><th class='border-b py-2 text-left'>Name</th></tr></thead><tbody>`;
+                                        data.students.forEach(s => {
+                                            table += `<tr><td class='border-b py-2'>${s.student_id_number}</td><td class='border-b py-2'>${s.name}</td></tr>`;
+                                        });
+                                        table += '</tbody></table></div>';
+                                        resultBox.innerHTML = table;
+                                    } else {
+                                        resultBox.innerHTML = '<div class="bg-green-100 text-green-800 p-4 rounded text-center">No student details found.</div>';
+                                    }
+                                });
+                            } else {
+                                resultBox.innerHTML = '<div class="bg-red-100 text-red-800 p-4 rounded text-center">' + (result.error || 'An error occurred.') + '</div>';
+                            }
+                        });
+                    });
+            }
+        };
+    </script>
+</body>
+</html>

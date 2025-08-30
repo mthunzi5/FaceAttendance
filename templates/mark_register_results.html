@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Mark Register Results{% endblock %}
+{% block content %}
+<div class="bg-white p-8 rounded shadow-md w-full max-w-2xl mx-auto mt-8">
+    <h1 class="text-2xl font-bold mb-6 text-center">Register Results</h1>
+    <div class="mb-4">
+        <div class="font-semibold">Module Name:</div> <span>{{ module_name }}</span><br>
+        <div class="font-semibold">Date/Time:</div> <span>{{ attendance_time }}</span><br>
+        <div class="font-semibold">Lecturer:</div> <span>{{ lecturer_name }}</span>
+    </div>
+    {% if students and students|length > 0 %}
+    <table class="w-full border mb-4">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="px-4 py-2">Student ID</th>
+                <th class="px-4 py-2">Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td class="px-4 py-2">{{ student.student_id_number }}</td>
+                <td class="px-4 py-2">{{ student.name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center text-red-600 mb-4">No students recognized.</div>
+    {% endif %}
+    <div class="flex flex-row gap-4 mb-4">
+        <form method="POST" action="/export-register">
+            <input type="hidden" name="module_name" value="{{ module_name }}">
+            <input type="hidden" name="lecturer_name" value="{{ lecturer_name }}">
+            <input type="hidden" name="attendance_time" value="{{ attendance_time }}">
+            <input type="hidden" name="student_ids" value="{{ students|map(attribute='student_id_number')|join(',') }}">
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded">Export as PDF</button>
+        </form>
+        <form method="POST" action="/save-register">
+            <input type="hidden" name="module_name" value="{{ module_name }}">
+            <input type="hidden" name="lecturer_name" value="{{ lecturer_name }}">
+            <input type="hidden" name="attendance_time" value="{{ attendance_time }}">
+            <input type="hidden" name="student_ids" value="{{ students|map(attribute='student_id_number')|join(',') }}">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Save Register</button>
+        </form>
+    </div>
+    <form method="POST" action="/award-marks">
+        <input type="hidden" name="student_ids" value="{{ students|map(attribute='student_id_number')|join(',') }}">
+        <div class="mb-2">
+            <label for="marks" class="font-semibold">Award Marks to All Attended Students:</label>
+            <input type="number" name="marks" id="marks" min="0" max="100" value="0" class="w-16 px-2 py-1 border rounded">
+        </div>
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Award Marks</button>
+    </form>
+</div>
+{% endblock %}

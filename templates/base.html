@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Face Attendance System{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow mb-8">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="/static/LogoFace.jpg" alt="Logo" class="h-10 w-10 rounded-full border border-indigo-200 shadow">
+                <span class="font-bold text-xl text-blue-700">Face Attendance</span>
+            </div>
+            <ul class="flex space-x-4">
+                {% if user %}
+                    {% if role == 'admin' %}
+                        <li><a href="/logout" class="text-red-600 hover:underline">Logout</a></li>
+                        <li><a href="/enroll" class="text-blue-700 hover:underline">Enroll Student</a></li>
+                        <li><a href="/create-lecturer" class="text-green-700 hover:underline">Create Lecturer</a></li>
+                        <li><a href="/students" class="text-gray-700 hover:underline">View Students</a></li>
+                        <li><a href="/lecturers" class="text-indigo-700 hover:underline">View Lecturers</a></li>
+                    {% elif role == 'lecturer' %}
+                        <li><a href="/logout" class="text-red-600 hover:underline">Logout</a></li>
+                        <li><a href="/attendance" class="text-green-700 hover:underline">Mark Attendance</a></li>
+                        <li><a href="/mark-register" class="text-purple-700 hover:underline">Mark Register</a></li>
+                        <li><a href="/live-attendance" class="text-pink-700 hover:underline">Live Camera Attendance</a></li>
+                        <li><a href="/registers" class="text-blue-700 hover:underline">Saved Registers</a></li>
+                    {% endif %}
+                    <li><a href="/" class="text-blue-700 hover:underline">Home</a></li>
+                {% else %}
+                    <li><a href="/login" class="text-blue-700 hover:underline">Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+    <main class="container mx-auto px-4">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="bg-white shadow mt-12 py-4">
+        <div class="container mx-auto px-4 text-center text-gray-500">
+            &copy; {{ current_year }} Face Attendance System. All rights reserved.
+        </div>
+    </footer>
+</body>
+</html>

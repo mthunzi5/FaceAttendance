@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard{% endblock %}
+{% block content %}
+<div class="bg-white p-8 rounded shadow-md w-full max-w-2xl mx-auto mt-8">
+    <h1 class="text-2xl font-bold mb-6 text-center">Welcome, {{ student.name }}</h1>
+    <div class="mb-4 text-center">
+        <span class="font-semibold">Student ID:</span> {{ student.student_id_number }}
+    </div>
+    <h2 class="text-xl font-bold mb-4">Attendance Records</h2>
+    {% if attendance_records and attendance_records|length > 0 %}
+    <table class="w-full border mb-4">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="px-4 py-2">Module Name</th>
+                <th class="px-4 py-2">Date/Time</th>
+                <th class="px-4 py-2">Marks Awarded</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendance_records %}
+            <tr>
+                <td class="px-4 py-2">{{ record.module_name }}</td>
+                <td class="px-4 py-2">{{ record.date_time }}</td>
+                <td class="px-4 py-2">{{ record.marks }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center text-red-600">No attendance records found.</div>
+    {% endif %}
+</div>
+{% endblock %}

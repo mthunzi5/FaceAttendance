@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mark Attendance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-md w-full p-8 space-y-8 bg-white rounded-lg shadow-lg border border-gray-200 mx-auto mt-16">
+{% extends "base.html" %}
+{% block title %}Mark Attendance{% endblock %}
+{% block content %}
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg mx-auto mt-8">
+        <h1 class="text-2xl font-bold mb-4 text-center">Mark Attendance</h1>
+        <!-- ...existing code... -->
+    </div>
+{% endblock %}
+    </div>
+</body>
+</html>
+    <script>
+        const openCameraBtn = document.getElementById('open-camera-btn');
+        const closeCameraBtn = document.getElementById('close-camera-btn');
+        const cameraStream = document.getElementById('camera-stream');
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const preview = document.getElementById('preview');
+        const cameraImageInput = document.getElementById('camera-image');
+        const imageInput = document.getElementById('image-input');
+        let stream;
+
+        openCameraBtn.onclick = async function() {
+            cameraStream.style.display = 'block';
+            captureBtn.style.display = 'inline-block';
+            closeCameraBtn.style.display = 'inline-block';
+            openCameraBtn.style.display = 'none';
+            imageInput.style.display = 'none';
+            preview.innerHTML = '';
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        };
+        closeCameraBtn.onclick = function() {
+            cameraStream.style.display = 'none';
+            captureBtn.style.display = 'none';
+            closeCameraBtn.style.display = 'none';
+            openCameraBtn.style.display = 'inline-block';
+            imageInput.style.display = 'inline-block';
+            preview.innerHTML = '';
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+        captureBtn.onclick = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            preview.innerHTML = `<img src="${dataUrl}" class="rounded shadow">`;
+            cameraImageInput.value = dataUrl;
+            closeCameraBtn.click();
+        };
+        document.getElementById('attendanceForm').onsubmit = function(e) {
+            if (cameraImageInput.value) {
+                // If camera image is used, convert dataURL to Blob and submit as file
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                // Convert dataURL to Blob
+                fetch(cameraImageInput.value)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        formData.set('image', blob, 'camera.jpg');
+                        form.action = '/attendance';
+                        fetch('/attendance', {
+                            method: 'POST',
+                            body: formData
+                        }).then(async response => {
+                            if (response.redirected) {
+                                window.location.href = response.url;
+                            } else {
+                                const result = await response.json();
+                                alert(result.message || result.error);
+                            }
+                        });
+                    });
+            }
+        };
+    </script>

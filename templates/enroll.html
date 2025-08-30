@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Enrollment</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="max-w-md w-full p-8 space-y-8 bg-white rounded-lg shadow-lg border border-gray-200">
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900">
+                Enroll a Student
+            </h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Upload a clear photo to register a new student's face.
+            </p>
+        </div>
+        <form id="enrollmentForm" method="POST" enctype="multipart/form-data">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="student-id" class="sr-only">Student ID</label>
+                    <input id="student-id" name="student_id" type="text" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                           placeholder="Enter Student ID">
+                </div>
+                <div class="mt-4">
+                    <label for="student-username" class="sr-only">Email</label>
+                    <input id="student-username" name="student_username" type="email" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                           placeholder="Enter Email">
+                </div>
+                <div class="mt-4">
+                    <label for="student-password" class="sr-only">Password</label>
+                    <input id="student-password" name="student_password" type="password" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                           placeholder="Enter Password">
+                </div>
+                <div class="mt-4">
+                    <label for="image" class="sr-only">Student Photo</label>
+                    <input id="image-input" name="image" type="file" accept="image/*" class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm">
+                </div>
+            </div>
+            <div class="mt-4">
+                <button type="button" id="open-camera-btn" class="py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700">Use Camera</button>
+                <button type="button" id="close-camera-btn" class="py-2 px-4 bg-gray-400 text-white rounded hover:bg-gray-500" style="display:none;">Close Camera</button>
+            </div>
+            <div id="camera-stream" style="display:none;">
+                <video id="video" width="320" height="240" autoplay></video>
+                <button type="button" id="capture-btn" class="py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 mt-2">Capture Photo</button>
+            </div>
+            <input type="hidden" name="camera_image" id="camera-image">
+            <div id="preview" class="mt-4"></div>
+            <button type="submit" class="w-full py-2 px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 mt-4">Enroll Student</button>
+        </form>
+
+        <!-- Message box for displaying feedback -->
+        <div id="messageBox" class="mt-4 p-4 rounded-md text-sm transition-all duration-300 ease-in-out hidden"></div>
+    </div>
+
+    <script>
+        const openCameraBtn = document.getElementById('open-camera-btn');
+        const closeCameraBtn = document.getElementById('close-camera-btn');
+        const cameraStream = document.getElementById('camera-stream');
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const preview = document.getElementById('preview');
+        const cameraImageInput = document.getElementById('camera-image');
+        const imageInput = document.getElementById('image-input');
+        let stream;
+
+        openCameraBtn.onclick = async function() {
+            cameraStream.style.display = 'block';
+            captureBtn.style.display = 'inline-block';
+            closeCameraBtn.style.display = 'inline-block';
+            openCameraBtn.style.display = 'none';
+            imageInput.style.display = 'none';
+            preview.innerHTML = '';
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        };
+        closeCameraBtn.onclick = function() {
+            cameraStream.style.display = 'none';
+            captureBtn.style.display = 'none';
+            closeCameraBtn.style.display = 'none';
+            openCameraBtn.style.display = 'inline-block';
+            imageInput.style.display = 'inline-block';
+            preview.innerHTML = '';
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+        captureBtn.onclick = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            preview.innerHTML = `<img src="${dataUrl}" class="rounded shadow">`;
+            cameraImageInput.value = dataUrl;
+            closeCameraBtn.click();
+        };
+        document.getElementById('enrollmentForm').onsubmit = function(e) {
+            if (cameraImageInput.value) {
+                // If camera image is used, convert dataURL to Blob and submit as file
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                // Convert dataURL to Blob
+                fetch(cameraImageInput.value)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        formData.set('image', blob, 'camera.jpg');
+                        fetch('/enroll', {
+                            method: 'POST',
+                            body: formData
+                        }).then(async response => {
+                            const result = await response.json();
+                            alert(result.message || result.error);
+                            if (response.ok) window.location.href = '/students';
+                        });
+                    });
+            }
+        };
+    </script>
+
+</body>
+</html>
