@@ -16,3 +16,5 @@ charset-normalizer
 colorama
 greenlet
 face_recognition_models
+gunicorn
+packaging
