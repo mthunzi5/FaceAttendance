@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Manage Qualifications{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto mt-8 p-8 bg-white rounded shadow">
+    <h2 class="text-xl font-bold mb-4">Add Qualification</h2>
+    <form method="POST">
+        <label>Name:</label>
+        <input type="text" name="name" required class="border rounded px-2 py-1 w-full mb-2">
+        <label>Description:</label>
+        <input type="text" name="description" class="border rounded px-2 py-1 w-full mb-2">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Add</button>
+        {% if error %}<div class="text-red-600 mt-2">{{ error }}</div>{% endif %}
+    </form>
+    <h3 class="text-lg font-semibold mt-6 mb-2">Existing Qualifications</h3>
+    <ul>
+        {% for q in qualifications %}
+        <li class="mb-1">{{ q.name }} - {{ q.description }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

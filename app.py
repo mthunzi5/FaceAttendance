@@ -1,9 +1,10 @@
 from flask import flash
 from flask import session, redirect, url_for, render_template
-from models import db, Student, Admin, Lecturer
+from models import db, Student, Admin,AttendanceRecord, Lecturer, Qualification, Module
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import numpy as np
+import datetime
 import face_recognition
 from flask import Flask, request, jsonify
 from models import db, Student
@@ -94,18 +95,22 @@ def enroll_student():
     """
     Handles both GET (show form) and POST (process enrollment).
     """
+    from models import Qualification
+    import datetime
+    current_year = datetime.datetime.now().year
+
     if request.method == 'GET':
-        import datetime
-        current_year = datetime.datetime.now().year
-        return render_template('enroll.html', current_year=current_year)
+        qualifications = Qualification.query.all()
+        return render_template('enroll.html', qualifications=qualifications, current_year=current_year)
 
     # POST: process enrollment (AJAX expects JSON response)
-    if 'student_id' not in request.form or 'image' not in request.files:
-        return jsonify({"error": "Missing student_id or image"}), 400
+    if 'student_id' not in request.form or 'image' not in request.files or 'student_username' not in request.form or 'student_password' not in request.form or 'qualification_id' not in request.form:
+        return jsonify({"error": "Missing required fields"}), 400
 
     student_id = request.form['student_id']
-    student_username = request.form.get('student_username')
-    student_password = request.form.get('student_password')
+    student_username = request.form['student_username']  # This should be an email
+    student_password = request.form['student_password']
+    qualification_id = request.form['qualification_id']
     image_file = request.files['image']
 
     with app.app_context():
@@ -139,7 +144,7 @@ def enroll_student():
             name=f"Student {student_id}",
             username=student_username,
             face_encoding=face_encoding.tobytes(),
-            password_hash=""
+            qualification_id=qualification_id
         )
         new_student.set_password(student_password)
         with app.app_context():
@@ -150,7 +155,6 @@ def enroll_student():
     except Exception as e:
         print(f"An error occurred: {e}")
         return jsonify({"error": "An internal error occurred"}), 500
-
 
 
 # Mark Attendance route
@@ -231,25 +235,48 @@ def delete_student(student_id):
 
 # View Students route
 
+from sqlalchemy.orm import joinedload
+
 @app.route('/students', methods=['GET'])
 def view_students():
     from flask import render_template
     import datetime
-    with app.app_context():
-        students = Student.query.all()
+    students = Student.query.options(joinedload(Student.qualification)).all()
     current_year = datetime.datetime.now().year
     return render_template('students_list.html', students=students, current_year=current_year)
 
 
-
 # Mark Register route
 @app.route('/mark-register', methods=['GET', 'POST'])
+@login_required(role='lecturer')
 def mark_register():
     from flask import render_template, request, session
+    from models import Qualification, Module
     import datetime
+
+    qualifications = Qualification.query.all()
+    modules = Module.query.all()
+
     if request.method == 'GET':
         current_year = datetime.datetime.now().year
-        return render_template('mark_register.html', current_year=current_year)
+        return render_template(
+            'mark_register.html',
+            qualifications=qualifications,
+            modules=modules,
+            current_year=current_year
+        )
+    # POST: Lecturer selects qualification and module, uploads image, awards marks
+    qualification_id = request.form.get('qualification_id')
+    module_id = request.form.get('module_id')
+    attendance_time = datetime.datetime.now()
+    marks_dict = {}  # student_id_number -> marks
+
+    # Get marks for present students
+    for key in request.form:
+        if key.startswith('marks_'):
+            sid = key.split('_')[1]
+            marks_dict[sid] = int(request.form[key])
+
     image_file = None
     if 'image' in request.files:
         image_file = request.files['image']
@@ -259,11 +286,9 @@ def mark_register():
         header, encoded = data_url.split(',', 1)
         img_bytes = base64.b64decode(encoded)
         image_file = io.BytesIO(img_bytes)
-    module_name = request.form.get('module_name', 'Unknown')
-    lecturer_name = session.get('user', 'Unknown')
-    attendance_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    present_student_ids = []
     students = []
-    student_ids = []
     if image_file:
         try:
             import PIL.Image
@@ -277,14 +302,44 @@ def mark_register():
                     for idx, is_match in enumerate(matches):
                         if is_match:
                             matched_students.add(known_student_ids[idx])
-                student_ids = list(matched_students)
-                if student_ids:
-                    with app.app_context():
-                        students = Student.query.filter(Student.student_id_number.in_(student_ids)).all()
+                present_student_ids = list(matched_students)
         except Exception as e:
             print(f"Mark register error: {e}")
+
+    # Get all students for this qualification
+    all_students = Student.query.filter_by(qualification_id=qualification_id).all()
+
+    # Save attendance records for all students in the qualification
+    for student in all_students:
+        status = "Present" if student.student_id_number in present_student_ids else "Absent"
+        marks = marks_dict.get(student.student_id_number, 0) if status == "Present" else 0
+        record = AttendanceRecord(
+            student_id=student.id,
+            module_id=module_id,
+            qualification_id=qualification_id,
+            date_time=attendance_time,
+            marks=marks,
+            status=status
+        )
+        db.session.add(record)
+    db.session.commit()
+
+    # Prepare students for results template (only present students)
+    students = Student.query.filter(Student.student_id_number.in_(present_student_ids)).all() if present_student_ids else []
+
     current_year = datetime.datetime.now().year
-    return render_template('mark_register_results.html', students=students, module_name=module_name, lecturer_name=lecturer_name, attendance_time=attendance_time, current_year=current_year)
+    return render_template(
+        'mark_register_results.html',
+        students=students,
+        module_id=module_id,
+        qualification_id=qualification_id,
+        lecturer_name=session.get('user', 'Unknown'),
+        attendance_time=attendance_time.strftime('%Y-%m-%d %H:%M:%S'),
+        current_year=current_year
+    )
+
+
+
 # Export register as PDF
 @app.route('/export-register', methods=['POST'])
 @login_required(role='lecturer')
@@ -368,16 +423,34 @@ def list_registers():
 @app.route('/award-marks', methods=['POST'])
 @login_required(role='lecturer')
 def award_marks():
-    from flask import request, flash, redirect, url_for
+    from flask import request, redirect, url_for, flash
+    from models import Student, AttendanceRecord, db
+
+    module_id = request.form.get('module_id')
+    qualification_id = request.form.get('qualification_id')
     student_ids = request.form.get('student_ids', '').split(',') if request.form.get('student_ids') else []
-    marks = request.form.get('marks', '0')
-    awarded = {}
-    if student_ids and student_ids[0]:
-        for student_id in student_ids:
-            awarded[student_id] = int(marks)
-        # Here you would save marks to the database (extend Student or Attendance model as needed)
-    flash(f"Marks awarded: {awarded if awarded else 'No students to award.'}")
-    return redirect(url_for('home'))
+    marks = int(request.form.get('marks', 0))
+    attendance_time = datetime.datetime.now()
+
+    # Get all students for this qualification
+    all_students = Student.query.filter_by(qualification_id=qualification_id).all()
+
+    for student in all_students:
+        is_present = student.student_id_number in student_ids
+        record = AttendanceRecord(
+            student_id=student.id,
+            module_id=module_id,
+            qualification_id=qualification_id,
+            date_time=attendance_time,
+            marks=marks if is_present else 0,
+            status="Present" if is_present else "Absent"
+        )
+        db.session.add(record)
+    db.session.commit()
+
+    flash("Marks awarded and attendance records created.")
+    return redirect(url_for('mark_register'))
+
 
 
 
@@ -579,17 +652,75 @@ def student_login():
 def student_dashboard():
     from flask import render_template, session, redirect, url_for
     import datetime
+    from sqlalchemy.orm import joinedload
+
     current_year = datetime.datetime.now().year
     student_id = session.get('student_id')
     if not student_id:
         return redirect(url_for('student_login'))
     with app.app_context():
         student = Student.query.filter_by(student_id_number=student_id).first()
-        # Dummy attendance records for now
-        attendance_records = []
-        # You can extend this to show real attendance and marks
-    return render_template('student_dashboard.html', student=student, attendance_records=attendance_records, current_year=current_year)
+        attendance_records = AttendanceRecord.query.options(
+            joinedload(AttendanceRecord.module)
+        ).filter_by(student_id=student.id).order_by(AttendanceRecord.date_time.desc()).all()
+    return render_template(
+        'student_dashboard.html',
+        student=student,
+        attendance_records=attendance_records,
+        current_year=current_year
+    )
 
+
+@app.route('/qualifications', methods=['GET', 'POST'])
+@login_required(role='admin')
+def manage_qualifications():
+    from flask import render_template, request, redirect, url_for
+    import datetime
+    current_year = datetime.datetime.now().year
+    error = None
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form['description']
+        if Qualification.query.filter_by(name=name).first():
+            error = "Qualification already exists."
+        else:
+            q = Qualification(name=name, description=description)
+            db.session.add(q)
+            db.session.commit()
+            return redirect(url_for('manage_qualifications'))
+    qualifications = Qualification.query.all()
+    return render_template('qualifications.html', qualifications=qualifications, error=error, current_year=current_year)
+
+@app.route('/modules', methods=['GET', 'POST'])
+@login_required(role='admin')
+def manage_modules():
+    from flask import render_template, request, redirect, url_for
+    import datetime
+    current_year = datetime.datetime.now().year
+    error = None
+    qualifications = Qualification.query.all()
+    if request.method == 'POST':
+        name = request.form['name']
+        qualification_id = request.form['qualification_id']
+        if Module.query.filter_by(name=name, qualification_id=qualification_id).first():
+            error = "Module already exists for this qualification."
+        else:
+            m = Module(name=name, qualification_id=qualification_id)
+            db.session.add(m)
+            db.session.commit()
+            return redirect(url_for('manage_modules'))
+    modules = Module.query.all()
+    return render_template('modules.html', modules=modules, qualifications=qualifications, error=error, current_year=current_year)
+
+@app.route('/attendance-records')
+@login_required(role='student')
+def attendance_records():
+    student_id = session.get('user_id')
+    records = AttendanceRecord.query.options(
+        joinedload(AttendanceRecord.module),
+        joinedload(AttendanceRecord.qualification)
+    ).filter_by(student_id=student_id).order_by(AttendanceRecord.date_time.desc()).all()
+    return render_template('attendance_records.html', records=records)
 
 
 

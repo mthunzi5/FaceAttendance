@@ -48,6 +48,18 @@
                            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                            placeholder="Enter Password">
                 </div>
+
+                <div class="mt-4">
+                    <label for="qualification" class="sr-only">Qualification</label>
+                    <select id="qualification" name="qualification_id" required
+                            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm">
+                        <option value="">Select Qualification</option>
+                        {% for qualification in qualifications %}
+                            <option value="{{ qualification.id }}">{{ qualification.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <div class="mt-4">
                     <label for="image" class="sr-only">Student Photo</label>
                     <input id="image-input" name="image" type="file" accept="image/*" class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm">

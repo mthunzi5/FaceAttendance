@@ -17,8 +17,22 @@
         </div>
         <form id="registerForm" method="POST" enctype="multipart/form-data" class="space-y-6">
             <div class="mb-4">
-                <label class="block text-lg font-medium text-gray-700">Module Name</label>
-                <input type="text" name="module_name" id="module-name" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2" required>
+                <label class="block text-lg font-medium text-gray-700">Qualification</label>
+                <select name="qualification_id" id="qualification_id" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2" required>
+                    <option value="">Select Qualification</option>
+                    {% for q in qualifications %}
+                    <option value="{{ q.id }}">{{ q.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-lg font-medium text-gray-700">Module</label>
+                <select name="module_id" id="module_id" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2" required>
+                    <option value="">Select Module</option>
+                    {% for m in modules %}
+                    <option value="{{ m.id }}">{{ m.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="flex flex-col items-center space-y-2">
                 <label class="block text-lg font-medium text-gray-700">Upload Group/Classroom Photo</label>
@@ -34,6 +48,7 @@
             </div>
             <input type="hidden" name="camera_image" id="camera-image">
             <div id="preview" class="mt-4 flex justify-center"></div>
+            <div id="marks-section" class="mt-4"></div>
             <button type="submit" class="w-full py-3 px-4 bg-indigo-700 text-white font-semibold rounded-xl shadow hover:bg-indigo-800 mt-4 transition">Mark Register</button>
         </form>
         <div id="resultBox" class="mt-6"></div>
@@ -82,46 +97,31 @@
             cameraImageInput.value = dataUrl;
             closeCameraBtn.click();
         };
-        document.getElementById('registerForm').onsubmit = function(e) {
-            if (cameraImageInput.value) {
-                e.preventDefault();
-                const form = e.target;
-                const formData = new FormData(form);
-                fetch(cameraImageInput.value)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        formData.set('image', blob, 'camera.jpg');
-                        fetch('/mark-register', {
-                            method: 'POST',
-                            body: formData
-                        }).then(async response => {
-                            const result = await response.json();
-                            if (result.status === 'no_faces') {
-                                resultBox.innerHTML = '<div class="bg-yellow-100 text-yellow-800 p-4 rounded text-center">No faces detected in the image.</div>';
-                            } else if (result.status === 'no_students') {
-                                resultBox.innerHTML = '<div class="bg-yellow-100 text-yellow-800 p-4 rounded text-center">No one attended. Faces were detected, but none matched enrolled students.</div>';
-                            } else if (result.status === 'success') {
-                                // Fetch student details for each ID
-                                fetch(`/students?ids=${result.students.join(',')}&json=1`).then(async resp => {
-                                    const data = await resp.json();
-                                    if (data.students && data.students.length > 0) {
-                                        let table = `<div class='bg-green-100 text-green-800 p-4 rounded'><h3 class='font-bold mb-2 text-lg text-center'>Attended Students</h3><table class='w-full border-collapse'><thead><tr><th class='border-b py-2 text-left'>Student ID</th><th class='border-b py-2 text-left'>Name</th></tr></thead><tbody>`;
-                                        data.students.forEach(s => {
-                                            table += `<tr><td class='border-b py-2'>${s.student_id_number}</td><td class='border-b py-2'>${s.name}</td></tr>`;
-                                        });
-                                        table += '</tbody></table></div>';
-                                        resultBox.innerHTML = table;
-                                    } else {
-                                        resultBox.innerHTML = '<div class="bg-green-100 text-green-800 p-4 rounded text-center">No student details found.</div>';
-                                    }
-                                });
-                            } else {
-                                resultBox.innerHTML = '<div class="bg-red-100 text-red-800 p-4 rounded text-center">' + (result.error || 'An error occurred.') + '</div>';
-                            }
-                        });
+
+        // Optionally, you can add JS to dynamically fetch students for the selected qualification and show marks input
+        // This requires an API endpoint to fetch students by qualification_id
+
+        // Example (pseudo-code, you need to implement the endpoint):
+        /*
+        document.getElementById('qualification_id').onchange = function() {
+            let qid = this.value;
+            fetch(`/api/students?qualification_id=${qid}`)
+                .then(resp => resp.json())
+                .then(data => {
+                    let html = '<h3 class="font-bold mb-2 text-lg text-center">Award Marks</h3><table class="w-full border-collapse"><thead><tr><th class="border-b py-2 text-left">Student ID</th><th class="border-b py-2 text-left">Name</th><th class="border-b py-2 text-left">Marks</th></tr></thead><tbody>';
+                    data.students.forEach(s => {
+                        html += `<tr>
+                            <td class="border-b py-2">${s.student_id_number}</td>
+                            <td class="border-b py-2">${s.name}</td>
+                            <td class="border-b py-2"><input type="number" name="marks_${s.student_id_number}" min="0" max="100" value="0" class="border rounded px-2 py-1 w-16"></td>
+                        </tr>`;
                     });
-            }
+                    html += '</tbody></table>';
+                    document.getElementById('marks-section').innerHTML = html;
+                });
         };
+        */
+
     </script>
 </body>
 </html>

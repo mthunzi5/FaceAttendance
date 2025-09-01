@@ -9,13 +9,15 @@ db = SQLAlchemy()
 
 
 class Student(db.Model):
-
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    student_id_number = db.Column(db.String(20), unique=True, nullable=False)
-    username = db.Column(db.String(120), unique=True, nullable=False)  # email
-    face_encoding = db.Column(db.LargeBinary, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    student_id_number = db.Column(db.String(64), unique=True, nullable=False)
+    name = db.Column(db.String(128), nullable=False)
+    username = db.Column(db.String(128), unique=True, nullable=False)
+    face_encoding = db.Column(db.LargeBinary)
+    password_hash = db.Column(db.String(128))
+    qualification_id = db.Column(db.Integer, db.ForeignKey('qualification.id'))
+    qualification = db.relationship('Qualification', backref=db.backref('students', lazy=True))
+    
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -82,3 +84,31 @@ class Register(db.Model):
     lecturer_name = db.Column(db.String(100), nullable=False)
     date_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     student_ids = db.Column(db.Text, nullable=False)  # Comma-separated student IDs
+
+
+
+class Qualification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), unique=True, nullable=False)
+    description = db.Column(db.String(256))
+
+class Module(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    qualification_id = db.Column(db.Integer, db.ForeignKey('qualification.id'), nullable=False)
+    qualification = db.relationship('Qualification', backref=db.backref('modules', lazy=True))
+
+
+
+class AttendanceRecord(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    module_id = db.Column(db.Integer, db.ForeignKey('module.id'), nullable=False)
+    qualification_id = db.Column(db.Integer, db.ForeignKey('qualification.id'), nullable=False)
+    date_time = db.Column(db.DateTime, default=datetime.utcnow)
+    marks = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(16), nullable=False)  # "Present" or "Absent"
+
+    student = db.relationship('Student', backref='attendance_records')
+    module = db.relationship('Module')
+    qualification = db.relationship('Qualification')

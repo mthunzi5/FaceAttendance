@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Attendance Records{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto mt-8 p-8 bg-white rounded shadow">
+    <h2 class="text-xl font-bold mb-4">Attendance Records</h2>
+    <table class="w-full border-collapse">
+        <thead>
+            <tr>
+                <th class="border-b py-2 text-left">Date & Time</th>
+                <th class="border-b py-2 text-left">Module</th>
+                <th class="border-b py-2 text-left">Qualification</th>
+                <th class="border-b py-2 text-left">Status</th>
+                <th class="border-b py-2 text-left">Marks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td class="border-b py-2">{{ record.date_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="border-b py-2">{{ record.module.name }}</td>
+                <td class="border-b py-2">{{ record.qualification.name }}</td>
+                <td class="border-b py-2">{{ record.status }}</td>
+                <td class="border-b py-2">{{ record.marks }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

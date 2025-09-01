@@ -14,14 +14,16 @@
                 <th class="px-4 py-2">Module Name</th>
                 <th class="px-4 py-2">Date/Time</th>
                 <th class="px-4 py-2">Marks Awarded</th>
+                <th class="px-4 py-2">Status</th>
             </tr>
         </thead>
         <tbody>
             {% for record in attendance_records %}
             <tr>
-                <td class="px-4 py-2">{{ record.module_name }}</td>
-                <td class="px-4 py-2">{{ record.date_time }}</td>
+                <td class="px-4 py-2">{{ record.module.name }}</td>
+                <td class="px-4 py-2">{{ record.date_time.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td class="px-4 py-2">{{ record.marks }}</td>
+                <td class="px-4 py-2">{{ record.status }}</td>
             </tr>
             {% endfor %}
         </tbody>

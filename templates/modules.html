@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Manage Modules{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto mt-8 p-8 bg-white rounded shadow">
+    <h2 class="text-xl font-bold mb-4">Add Module</h2>
+    <form method="POST">
+        <label>Name:</label>
+        <input type="text" name="name" required class="border rounded px-2 py-1 w-full mb-2">
+        <label>Qualification:</label>
+        <select name="qualification_id" required class="border rounded px-2 py-1 w-full mb-2">
+            {% for q in qualifications %}
+            <option value="{{ q.id }}">{{ q.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Add</button>
+        {% if error %}<div class="text-red-600 mt-2">{{ error }}</div>{% endif %}
+    </form>
+    <h3 class="text-lg font-semibold mt-6 mb-2">Existing Modules</h3>
+    <ul>
+        {% for m in modules %}
+        <li class="mb-1">{{ m.name }} ({{ m.qualification.name if m.qualification else 'No Qualification' }})</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}
