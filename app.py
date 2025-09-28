@@ -8,7 +8,7 @@ import datetime
 import face_recognition
 from flask import Flask, request, jsonify
 from models import db, Student
-## removed duplicate import
+
 from functools import wraps
 
 
@@ -456,22 +456,31 @@ def award_marks():
 
 # Live Camera Attendance route
 @app.route('/live-attendance', methods=['GET', 'POST'])
+@login_required(role='lecturer')
 def live_attendance():
-    from flask import render_template, request, session, redirect, url_for
+    from flask import render_template, request, session, redirect, url_for, jsonify
     import base64, io, datetime
+    from models import Student, AttendanceRecord, Qualification, Module, db
+
     if request.method == 'GET':
         current_year = datetime.datetime.now().year
-        return render_template('live_attendance.html', current_year=current_year)
-    # POST: process camera image and module name
+        qualifications = Qualification.query.all()
+        modules = Module.query.all()
+        return render_template('live_attendance.html', current_year=current_year, qualifications=qualifications, modules=modules)
+
+    # POST: process camera image, qualification, and module
     data = request.get_json()
-    if not data or 'camera_image' not in data:
-        return jsonify({"error": "No image provided."}), 400
+    if not data or 'camera_image' not in data or 'qualification_id' not in data or 'module_id' not in data:
+        return jsonify({"error": "Missing required data."}), 400
+
     data_url = data['camera_image']
-    module_name = data.get('module_name', 'Unknown')
+    qualification_id = data['qualification_id']
+    module_id = data['module_id']
     lecturer_name = session.get('user', 'Unknown')
-    attendance_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    attendance_time = datetime.datetime.now()
     students = []
-    student_ids = []
+    present_student_ids = []
+
     try:
         header, encoded = data_url.split(',', 1)
         img_bytes = base64.b64decode(encoded)
@@ -487,23 +496,47 @@ def live_attendance():
                 for idx, is_match in enumerate(matches):
                     if is_match:
                         matched_students.add(known_student_ids[idx])
-            student_ids = list(matched_students)
-            if student_ids:
-                with app.app_context():
-                    students = Student.query.filter(Student.student_id_number.in_(student_ids)).all()
-        # Save register (even if no students)
-        from models import Register
-        with app.app_context():
-            reg = Register(module_name=module_name, lecturer_name=lecturer_name, date_time=datetime.datetime.now(), student_ids=','.join(student_ids))
-            db.session.add(reg)
-            db.session.commit()
-        # Prepare students for template
+            present_student_ids = list(matched_students)
+        # Get all students for this qualification
+        all_students = Student.query.filter_by(qualification_id=qualification_id).all()
+        # Save attendance records for all students in the qualification
+        for student in all_students:
+            status = "Present" if student.student_id_number in present_student_ids else "Absent"
+            marks = 1 if status == "Present" else 0  # You can adjust marks logic as needed
+            record = AttendanceRecord(
+                student_id=student.id,
+                module_id=module_id,
+                qualification_id=qualification_id,
+                date_time=attendance_time,
+                marks=marks,
+                status=status
+            )
+            db.session.add(record)
+        db.session.commit()
+        # Prepare students for template (only present students)
+        students = Student.query.filter(Student.student_id_number.in_(present_student_ids)).all() if present_student_ids else []
         current_year = datetime.datetime.now().year
-        return render_template('live_register_results.html', students=students, module_name=module_name, lecturer_name=lecturer_name, attendance_time=attendance_time, current_year=current_year)
+        return render_template(
+            'live_register_results.html',
+            students=students,
+            module_id=module_id,
+            qualification_id=qualification_id,
+            lecturer_name=lecturer_name,
+            attendance_time=attendance_time.strftime('%Y-%m-%d %H:%M:%S'),
+            current_year=current_year
+        )
     except Exception as e:
         print(f"Live attendance error: {e}")
         current_year = datetime.datetime.now().year
-        return render_template('live_register_results.html', students=[], module_name=module_name, lecturer_name=lecturer_name, attendance_time=attendance_time, current_year=current_year)
+        return render_template(
+            'live_register_results.html',
+            students=[],
+            module_id=module_id,
+            qualification_id=qualification_id,
+            lecturer_name=lecturer_name,
+            attendance_time=attendance_time.strftime('%Y-%m-%d %H:%M:%S'),
+            current_year=current_year
+        )
 
 app.secret_key = 'supersecretkey'  # Change for production
 # Helper: login required decorator
