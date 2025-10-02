@@ -1,11 +1,12 @@
 [build]
 nixPkgs = [
-  "libx11",
+  "xorg.libX11",
   "libstdcxx5",
-  "libgl1",
-  "libglib-2.0-0",
-  "libsm6",
-  "libxext6",
-  "libxrender1",
+  "mesa_glu",
+  "glib",
+  "libGL",
+  "libSM",
+  "xorg.libXext",
+  "xorg.libXrender",
   "ffmpeg"
 ]
