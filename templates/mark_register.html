@@ -4,124 +4,194 @@
     <meta charset="UTF-8">
     <title>Mark Register</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        #camera-stream { display: none; }
-        #capture-btn, #close-camera-btn { display: none; }
+        body {
+            background: #0a192f;
+            font-family: 'Share Tech Mono', monospace;
+            color: #e0e8ff;
+            overflow-x: hidden;
+        }
+        .glow {
+            text-shadow: 0 0 8px #38bdf8, 0 0 16px #2563eb;
+        }
+        .blue-line {
+            width: 100vw;
+            height: 2px;
+            background: linear-gradient(90deg, #38bdf8 0%, #2563eb 100%);
+            margin: 24px 0;
+            opacity: 0.4;
+            animation: moveLine 2s linear infinite;
+        }
+        @keyframes moveLine {
+            0% { transform: translateX(-20vw);}
+            100% { transform: translateX(20vw);}
+        }
+        #matrix-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .main-content {
+            position: relative;
+            z-index: 1;
+        }
+        .scanner-wheel {
+            border: 6px solid #38bdf8;
+            border-top: 6px solid #2563eb;
+            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 24px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-100 via-white to-indigo-100 min-h-screen flex items-center justify-center">
-    <div class="max-w-lg w-full p-10 space-y-8 bg-white rounded-2xl shadow-2xl border border-gray-300 mx-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-3xl font-extrabold text-indigo-700 tracking-tight">Mark Register</h2>
-            <span class="inline-block px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full">Classic Mode</span>
-        </div>
-        <form id="registerForm" method="POST" enctype="multipart/form-data" class="space-y-6">
-            <div class="mb-4">
-                <label class="block text-lg font-medium text-gray-700">Qualification</label>
-                <select name="qualification_id" id="qualification_id" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2" required>
-                    <option value="">Select Qualification</option>
-                    {% for q in qualifications %}
-                    <option value="{{ q.id }}">{{ q.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="mb-4">
-                <label class="block text-lg font-medium text-gray-700">Module</label>
-                <select name="module_id" id="module_id" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2" required>
-                    <option value="">Select Module</option>
-                    {% for m in modules %}
-                    <option value="{{ m.id }}">{{ m.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="flex flex-col items-center space-y-2">
-                <label class="block text-lg font-medium text-gray-700">Upload Group/Classroom Photo</label>
-                <input type="file" name="image" id="image-input" accept="image/*" class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2">
-            </div>
-            <div class="flex flex-row items-center justify-center space-x-4">
-                <button type="button" id="open-camera-btn" class="py-2 px-6 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">Use Camera</button>
-                <button type="button" id="close-camera-btn" class="py-2 px-6 bg-gray-400 text-white rounded-lg shadow hover:bg-gray-500 transition" style="display:none;">Close Camera</button>
-            </div>
-            <div id="camera-stream" class="flex flex-col items-center space-y-2" style="display:none;">
-                <video id="video" width="320" height="240" autoplay class="rounded-lg border border-indigo-200 shadow"></video>
-                <button type="button" id="capture-btn" class="py-2 px-6 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 mt-2 transition">Capture Photo</button>
-            </div>
-            <input type="hidden" name="camera_image" id="camera-image">
-            <div id="preview" class="mt-4 flex justify-center"></div>
-            <div id="marks-section" class="mt-4"></div>
-            <button type="submit" class="w-full py-3 px-4 bg-indigo-700 text-white font-semibold rounded-xl shadow hover:bg-indigo-800 mt-4 transition">Mark Register</button>
-        </form>
-        <div id="resultBox" class="mt-6"></div>
-        <a href="/" class="block mt-8 text-indigo-600 text-center font-medium hover:underline">&#8592; Back to Home</a>
+<body>
+<canvas id="matrix-canvas"></canvas>
+<div class="main-content max-w-lg w-full p-10 space-y-8 bg-[#101f3a] bg-opacity-90 rounded-2xl shadow-2xl border border-cyan-700 mx-auto mt-10">
+    <div class="scanner-wheel"></div>
+    <div class="blue-line"></div>
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-3xl font-extrabold text-cyan-300 glow tracking-tight">Mark Register</h2>
+        <span class="inline-block px-3 py-1 text-xs font-semibold bg-cyan-100 text-cyan-700 rounded-full">Scanning Mode</span>
     </div>
-    <script>
-        const openCameraBtn = document.getElementById('open-camera-btn');
-        const closeCameraBtn = document.getElementById('close-camera-btn');
-        const cameraStream = document.getElementById('camera-stream');
-        const video = document.getElementById('video');
-        const captureBtn = document.getElementById('capture-btn');
-        const preview = document.getElementById('preview');
-        const cameraImageInput = document.getElementById('camera-image');
-        const imageInput = document.getElementById('image-input');
-        const resultBox = document.getElementById('resultBox');
-        let stream;
+    <form id="registerForm" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <div class="mb-4">
+            <label class="block text-lg font-medium text-cyan-200">Qualification</label>
+            <select name="qualification_id" id="qualification_id" class="block w-full text-sm text-cyan-600 border border-cyan-300 rounded-lg shadow-sm focus:ring-cyan-500 focus:border-cyan-500 p-2 bg-[#0a192f]" required>
+                <option value="">Select Qualification</option>
+                {% for q in qualifications %}
+                <option value="{{ q.id }}">{{ q.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-4">
+            <label class="block text-lg font-medium text-cyan-200">Module</label>
+            <select name="module_id" id="module_id" class="block w-full text-sm text-cyan-600 border border-cyan-300 rounded-lg shadow-sm focus:ring-cyan-500 focus:border-cyan-500 p-2 bg-[#0a192f]" required>
+                <option value="">Select Module</option>
+                {% for m in modules %}
+                <option value="{{ m.id }}">{{ m.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex flex-col items-center space-y-2">
+            <label class="block text-lg font-medium text-cyan-200">Upload Group/Classroom Photo</label>
+            <input type="file" name="image" id="image-input" accept="image/*" class="block w-full text-sm text-cyan-600 border border-cyan-300 rounded-lg shadow-sm focus:ring-cyan-500 focus:border-cyan-500 p-2 bg-[#0a192f]">
+        </div>
+        <div class="flex flex-row items-center justify-center space-x-4">
+            <button type="button" id="open-camera-btn" class="py-2 px-6 bg-cyan-600 text-white rounded-lg shadow hover:bg-cyan-700 transition">Use Camera</button>
+            <button type="button" id="close-camera-btn" class="py-2 px-6 bg-gray-400 text-white rounded-lg shadow hover:bg-gray-500 transition" style="display:none;">Close Camera</button>
+        </div>
+        <div id="camera-stream" class="flex flex-col items-center space-y-2" style="display:none;">
+            <video id="video" width="320" height="240" autoplay class="rounded-lg border border-cyan-200 shadow"></video>
+            <button type="button" id="capture-btn" class="py-2 px-6 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 mt-2 transition">Capture Photo</button>
+        </div>
+        <input type="hidden" name="camera_image" id="camera-image">
+        <div id="preview" class="mt-4 flex justify-center"></div>
+        <div id="marks-section" class="mt-4"></div>
+        <button type="submit" class="w-full py-3 px-4 bg-cyan-700 text-white font-semibold rounded-xl shadow hover:bg-cyan-800 mt-4 transition">Mark Register</button>
+    </form>
+    <div id="resultBox" class="mt-6"></div>
+    <a href="/" class="block mt-8 text-cyan-400 text-center font-medium hover:underline">&#8592; Back to Home</a>
+</div>
+<script>
+    // Matrix code rain effect
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const fontSize = 18;
+    const columns = Math.floor(width / fontSize);
+    const drops = Array(columns).fill(1);
+    function drawMatrix() {
+        ctx.fillStyle = "rgba(10,25,47,0.15)";
+        ctx.fillRect(0, 0, width, height);
+        ctx.font = fontSize + "px 'Share Tech Mono', monospace";
+        ctx.fillStyle = "#38bdf8";
+        for (let i = 0; i < drops.length; i++) {
+            const text = letters[Math.floor(Math.random() * letters.length)];
+            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+            if (drops[i] * fontSize > height && Math.random() > 0.975) {
+                drops[i] = 0;
+            }
+            drops[i]++;
+        }
+    }
+    setInterval(drawMatrix, 50);
+    window.addEventListener('resize', () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    });
 
-        openCameraBtn.onclick = async function() {
+    // Camera logic (unchanged)
+    const openCameraBtn = document.getElementById('open-camera-btn');
+    const closeCameraBtn = document.getElementById('close-camera-btn');
+    const cameraStream = document.getElementById('camera-stream');
+    const video = document.getElementById('video');
+    const captureBtn = document.getElementById('capture-btn');
+    const preview = document.getElementById('preview');
+    const cameraImageInput = document.getElementById('camera-image');
+    const imageInput = document.getElementById('image-input');
+    const resultBox = document.getElementById('resultBox');
+    let stream;
+
+    
+openCameraBtn.onclick = async function () {
+    // Check if mediaDevices and getUserMedia are supported
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        try {
             cameraStream.style.display = 'block';
             captureBtn.style.display = 'inline-block';
             closeCameraBtn.style.display = 'inline-block';
             openCameraBtn.style.display = 'none';
             imageInput.style.display = 'none';
             preview.innerHTML = '';
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+            // Request access to the camera
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
-        };
-        closeCameraBtn.onclick = function() {
-            cameraStream.style.display = 'none';
-            captureBtn.style.display = 'none';
-            closeCameraBtn.style.display = 'none';
-            openCameraBtn.style.display = 'inline-block';
-            imageInput.style.display = 'inline-block';
-            preview.innerHTML = '';
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-        };
-        captureBtn.onclick = function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            preview.innerHTML = `<img src="${dataUrl}" class="rounded shadow">`;
-            cameraImageInput.value = dataUrl;
-            closeCameraBtn.click();
-        };
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Unable to access the camera. Please check your browser settings or permissions.");
+        }
+    } else {
+        alert("Camera access is not supported in this browser or over an insecure connection (HTTP). Please use HTTPS or a supported browser.");
+    }
+};
 
-        // Optionally, you can add JS to dynamically fetch students for the selected qualification and show marks input
-        // This requires an API endpoint to fetch students by qualification_id
-
-        // Example (pseudo-code, you need to implement the endpoint):
-        /*
-        document.getElementById('qualification_id').onchange = function() {
-            let qid = this.value;
-            fetch(`/api/students?qualification_id=${qid}`)
-                .then(resp => resp.json())
-                .then(data => {
-                    let html = '<h3 class="font-bold mb-2 text-lg text-center">Award Marks</h3><table class="w-full border-collapse"><thead><tr><th class="border-b py-2 text-left">Student ID</th><th class="border-b py-2 text-left">Name</th><th class="border-b py-2 text-left">Marks</th></tr></thead><tbody>';
-                    data.students.forEach(s => {
-                        html += `<tr>
-                            <td class="border-b py-2">${s.student_id_number}</td>
-                            <td class="border-b py-2">${s.name}</td>
-                            <td class="border-b py-2"><input type="number" name="marks_${s.student_id_number}" min="0" max="100" value="0" class="border rounded px-2 py-1 w-16"></td>
-                        </tr>`;
-                    });
-                    html += '</tbody></table>';
-                    document.getElementById('marks-section').innerHTML = html;
-                });
-        };
-        */
-
-    </script>
+    closeCameraBtn.onclick = function() {
+        cameraStream.style.display = 'none';
+        captureBtn.style.display = 'none';
+        closeCameraBtn.style.display = 'none';
+        openCameraBtn.style.display = 'inline-block';
+        imageInput.style.display = 'inline-block';
+        preview.innerHTML = '';
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    };
+    captureBtn.onclick = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        preview.innerHTML = `<img src="${dataUrl}" class="rounded shadow">`;
+        cameraImageInput.value = dataUrl;
+        closeCameraBtn.click();
+    };
+</script>
 </body>
 </html>
